@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables / secrets
+.env
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Python testing
+.pytest_cache/
+
+# Keep empty data directories
+!data/raw/.gitkeep
+!data/curated/.gitkeep
+!data/rejects/.gitkeep
+!data/checkpoints/.gitkeep
+
+# Logs
+*.log
+logs/
