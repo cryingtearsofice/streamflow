@@ -31,3 +31,10 @@ env/
 # Logs
 *.log
 logs/
+
+data/raw/
+data/curated/
+data/rejects/
+data/checkpoints/
+airflow/logs/
+spark-warehouse/
