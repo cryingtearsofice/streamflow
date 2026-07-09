@@ -5,6 +5,7 @@ from typing import Iterable
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import Window
+from pyspark.sql.types import DecimalType
 
 from streamflow.schemas import TransactionSource, TransactionStatus, TransactionType
 
@@ -29,7 +30,7 @@ REASON_INVALID_STATUS = "INVALID_STATUS"
 REASON_DUPLICATE_EVENT_ID = "DUPLICATE_EVENT_ID"
 
 UUID_PATTERN = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-AMOUNT_PATTERN = r"^\$?\d{1,3}(,\d{3})*(\.\d{2})?$"
+AMOUNT_PATTERN = r"^\d+(\.\d{2})$"
 
 # Meant to turn enums into lists of allowed values
 def _allowed_values(values: Iterable) -> list[str]:
@@ -40,9 +41,32 @@ def _is_missing(column_name: str) -> Column:
 	col = F.col(column_name)
 	return col.isNull() | (F.trim(col.cast("string")) == F.lit(""))
 
+# Normalize incoming values.
+def _clean_events(df: DataFrame) -> DataFrame:
+	amount_as_string = F.trim(F.col("amount").cast("string"))
+	stripped_amount = F.regexp_replace(
+		F.regexp_replace(amount_as_string, r",", ""),
+		r"^\$", "",
+	)
+	normalized_amount = (
+		F.when(stripped_amount.rlike(r"^\d+$"), F.concat(stripped_amount, F.lit(".00")))
+		.when(stripped_amount.rlike(r"^\d+\.\d$"), F.concat(stripped_amount, F.lit("0")))
+		.otherwise(stripped_amount)
+	)
 
+	return (
+		df.withColumn("event_id", F.trim(F.col("event_id").cast("string")))
+		.withColumn("event_type", F.lower(F.trim(F.col("event_type").cast("string"))))
+		.withColumn("source", F.lower(F.trim(F.col("source").cast("string"))))
+		.withColumn("status", F.upper(F.trim(F.col("status").cast("string"))))
+		.withColumn("account_id", F.trim(F.col("account_id").cast("string")))
+		.withColumn("amount", normalized_amount)
+	)
+
+# Split incoming events into valid and rejected DataFrames with reason codes.
 def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
-	"""Split incoming events into valid and rejected DataFrames with reason codes."""
+	cleaned_df = _clean_events(df)
+
 	allowed_event_types = _allowed_values(TransactionType)
 	allowed_sources = _allowed_values(TransactionSource)
 	allowed_statuses = _allowed_values(TransactionStatus)
@@ -70,7 +94,7 @@ def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
 	)
 	duplicate_rank = F.row_number().over(duplicate_window)
 
-	enriched = df.withColumn("_duplicate_rank", duplicate_rank)
+	enriched = cleaned_df.withColumn("_duplicate_rank", duplicate_rank)
 
 	reason_code = (
 		F.when(missing_any, F.lit(REASON_MISSING_REQUIRED_FIELD))
@@ -106,7 +130,10 @@ def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
 		.drop("_duplicate_rank")
 	)
 
-	valid_df = with_reasons.filter(F.col("reason_code").isNull())
+	valid_df = with_reasons.filter(F.col("reason_code").isNull()).drop("reason_code", "reason_detail").withColumn(
+        "amount",
+        F.col("amount").cast(DecimalType(10, 2))
+    )
 	rejected_df = with_reasons.filter(F.col("reason_code").isNotNull())
 
 	return valid_df, rejected_df
