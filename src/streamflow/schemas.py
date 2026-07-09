@@ -37,7 +37,7 @@ class TransactionEvent(BaseModel):
     event_ts: datetime
     source: TransactionSource
     account_id: str = Field(min_length=1)
-    amount: Decimal = Field(pattern=r"^\$?\d{1,3}(,\d{3})*(\.\d{2})?$")
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
     status: TransactionStatus
 
     model_config = {"extra": "forbid"}
