@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -37,10 +36,18 @@ class TransactionEvent(BaseModel):
     event_ts: datetime
     source: TransactionSource
     account_id: str = Field(min_length=1)
-    amount: Decimal = Field(pattern=r"^\d+(\.\d{2})$")
+    amount: Decimal = Field(ge=0, decimal_places=2)
     status: TransactionStatus
 
     model_config = {"extra": "forbid"}
 
-event_schema = TransactionEvent.model_json_schema()  
-print(json.dumps(event_schema, indent=2))
+
+def main() -> None:
+    import json
+
+    event_schema = TransactionEvent.model_json_schema()
+    print(json.dumps(event_schema, indent=2))
+
+
+if __name__ == "__main__":
+    main()
