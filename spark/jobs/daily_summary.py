@@ -1,0 +1,17 @@
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
+
+
+def create_transaction_summary(df: DataFrame, group: str | list[str] | None = None) -> DataFrame:
+    if group is None:
+        group_columns = ["event_type", "source"]
+    elif isinstance(group, str):
+        group_columns = [group]
+    else:
+        group_columns = group
+
+    return df.groupBy(*group_columns).agg(
+        F.count("*").alias("event_count"),
+        F.sum("amount").alias("total_amount"),
+        F.avg("amount").alias("avg_amount"),
+    )
