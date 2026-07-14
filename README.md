@@ -8,8 +8,8 @@ Install Pydantic to make sure that you can convert your Python classes to JSON:
 Download [Kafka 4.3.1](https://kafka.apache.org/community/downloads/)
 
 Run these three commands in order:
-`kafka-storage.bat random-uuid`
-`kafka-storage.bat format --standalone -t <uuid> -c config\server.properties`
+`kafka-storage.bat random-uuid`,
+`kafka-storage.bat format --standalone -t <uuid> -c config\server.properties`,
 `kafka-server-start.bat config\server.properties`
 
 ## Daily Stand up Notes
