@@ -7,6 +7,9 @@ Install Pydantic to make sure that you can convert your Python classes to JSON:
 ## Kafka 
 Download [Kafka 4.3.1](https://kafka.apache.org/community/downloads/)
 
+Install Confluent Kafka in terminal.
+`pip install confluent-kafka`
+
 Run these three commands in order:
 `kafka-storage.bat random-uuid`,
 `kafka-storage.bat format --standalone -t <uuid> -c config\server.properties`,
