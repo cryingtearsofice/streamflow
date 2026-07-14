@@ -15,3 +15,11 @@ def create_transaction_summary(df: DataFrame, group: str | list[str] | None = No
         F.sum("amount").alias("total_amount"),
         F.avg("amount").alias("avg_amount"),
     )
+
+
+def write_summary(summary_df: DataFrame, output_path: str = "data/curated/daily_summary"):
+    (
+        summary_df.write
+        .mode("overwrite")
+        .parquet(output_path)
+    )
