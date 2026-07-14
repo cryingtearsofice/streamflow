@@ -12,7 +12,7 @@ def start_ingestion():
     spark = SparkSession.builder \
         .appName("IngestionAndLogging") \
         .master("local[*]") \
-        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:4.1.2") \
+        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
         .getOrCreate()
 
     # Set the directories for the raw data and checkpoints, pointing towards the current file then going up two directories and into the data folder
