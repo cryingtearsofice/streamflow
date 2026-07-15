@@ -38,6 +38,6 @@ def create_transaction_details(valid_df: DataFrame):
 def write_transaction_details(details_df, output_path = "data/curated/transaction_details"):
     (
         details_df.write
-        .mode("overwrite")
+        .mode("overwrite") # Should probably change this to append. Will have to see during integration
         .parquet(output_path)
     )
