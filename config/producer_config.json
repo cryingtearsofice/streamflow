@@ -1,0 +1,8 @@
+{
+  "bootstrap_servers": "localhost:9092",
+  "topic": "streamflow.events",
+  "event_interval_seconds": 0.5,
+  "total_events": 20,
+  "num_accounts": 10,
+  "invalid_rate": 0.2
+}

@@ -40,7 +40,7 @@ class TransactionEvent(BaseModel):
     event_ts: datetime
     source: TransactionSource
     account_id: str = Field(min_length=1)
-    amount: Decimal = Field(ge=0, decimal_places=2)
+    amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     status: TransactionStatus
 
     model_config = {"extra": "forbid"}
