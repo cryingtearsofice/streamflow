@@ -1,40 +1,32 @@
 from __future__ import annotations
 
-from typing import Iterable
-
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import Window
 from pyspark.sql.types import DecimalType
 
-from streamflow.schemas import TransactionSource, TransactionStatus, TransactionType
-
-
-REQUIRED_FIELDS = (
-	"event_id",
-	"event_type",
-	"event_ts",
-	"source",
-	"account_id",
-	"amount",
-	"status",
+from streamflow.schemas import (
+	ALLOWED_EVENT_TYPES,
+	ALLOWED_SOURCES,
+	ALLOWED_STATUSES,
+	AMOUNT_PATTERN,
+	INVALID_REASONS,
+	REQUIRED_FIELDS,
+	TRANSACTION_SPARK_SCHEMA,
+	UUID_PATTERN,
 )
 
-REASON_MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD"
-REASON_INVALID_EVENT_ID = "INVALID_EVENT_ID"
-REASON_INVALID_EVENT_TS = "INVALID_EVENT_TS"
-REASON_INVALID_AMOUNT = "INVALID_AMOUNT"
-REASON_INVALID_EVENT_TYPE = "INVALID_EVENT_TYPE"
-REASON_INVALID_SOURCE = "INVALID_SOURCE"
-REASON_INVALID_STATUS = "INVALID_STATUS"
-REASON_DUPLICATE_EVENT_ID = "DUPLICATE_EVENT_ID"
 
-UUID_PATTERN = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-AMOUNT_PATTERN = r"^\d+(\.\d{2})$"
+def _align_to_transaction_schema(df: DataFrame) -> DataFrame:
+	aligned = df
+	for field in TRANSACTION_SPARK_SCHEMA:
+		if field.name not in aligned.columns:
+			aligned = aligned.withColumn(field.name, F.lit(None).cast(field.dataType))
+		else:
+			aligned = aligned.withColumn(field.name, F.col(field.name).cast(field.dataType))
 
-# Meant to turn enums into lists of allowed values
-def _allowed_values(values: Iterable) -> list[str]:
-	return [str(value.value) for value in values]
+	ordered_columns = [field.name for field in TRANSACTION_SPARK_SCHEMA]
+	return aligned.select(*ordered_columns)
 
 
 def _is_missing(column_name: str) -> Column:
@@ -65,11 +57,8 @@ def _clean_events(df: DataFrame) -> DataFrame:
 
 # Split incoming events into valid and rejected DataFrames with reason codes.
 def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
-	cleaned_df = _clean_events(df)
-
-	allowed_event_types = _allowed_values(TransactionType)
-	allowed_sources = _allowed_values(TransactionSource)
-	allowed_statuses = _allowed_values(TransactionStatus)
+	transaction_df = _align_to_transaction_schema(df)
+	cleaned_df = _clean_events(transaction_df)
 
 	missing_conditions = [_is_missing(name) for name in REQUIRED_FIELDS]
 	missing_any = missing_conditions[0]
@@ -82,9 +71,9 @@ def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
 			missing_conditions[i], F.lit(REQUIRED_FIELDS[i])
 		)
 
-	invalid_event_type = ~F.col("event_type").isin(allowed_event_types)
-	invalid_source = ~F.col("source").isin(allowed_sources)
-	invalid_status = ~F.col("status").isin(allowed_statuses)
+	invalid_event_type = ~F.col("event_type").isin(*ALLOWED_EVENT_TYPES)
+	invalid_source = ~F.col("source").isin(*ALLOWED_SOURCES)
+	invalid_status = ~F.col("status").isin(*ALLOWED_STATUSES)
 	invalid_event_id = ~F.col("event_id").cast("string").rlike(UUID_PATTERN)
 	invalid_event_ts = F.expr("try_cast(cast(event_ts as string) as timestamp)").isNull()
 	invalid_amount = ~F.col("amount").cast("string").rlike(AMOUNT_PATTERN)
@@ -97,16 +86,16 @@ def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
 	enriched = cleaned_df.withColumn("_duplicate_rank", duplicate_rank)
 
 	reason_code = (
-		F.when(missing_any, F.lit(REASON_MISSING_REQUIRED_FIELD))
-		.when(invalid_event_id, F.lit(REASON_INVALID_EVENT_ID))
-		.when(invalid_event_ts, F.lit(REASON_INVALID_EVENT_TS))
-		.when(invalid_amount, F.lit(REASON_INVALID_AMOUNT))
-		.when(invalid_event_type, F.lit(REASON_INVALID_EVENT_TYPE))
-		.when(invalid_source, F.lit(REASON_INVALID_SOURCE))
-		.when(invalid_status, F.lit(REASON_INVALID_STATUS))
+		F.when(missing_any, F.lit(INVALID_REASONS[0]))# MISSING_REQUIRED_FIELD
+		.when(invalid_event_id, F.lit(INVALID_REASONS[1])) # INVALID_EVENT_ID
+		.when(invalid_event_ts, F.lit(INVALID_REASONS[2])) # INVALID_EVENT_TS
+		.when(invalid_amount, F.lit(INVALID_REASONS[3])) # INVALID_AMOUNT
+		.when(invalid_event_type, F.lit(INVALID_REASONS[4])) # INVALID_EVENT_TYPE
+		.when(invalid_source, F.lit(INVALID_REASONS[5])) # INVALID_SOURCE
+		.when(invalid_status, F.lit(INVALID_REASONS[6])) # INVALID_STATUS
 		.when(
 			(~F.col("event_id").isNull()) & (F.col("_duplicate_rank") > 1),
-			F.lit(REASON_DUPLICATE_EVENT_ID),
+			F.lit(INVALID_REASONS[7]), # DUPLICATE_EVENT_ID
 		)
 	)
 
