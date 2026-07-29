@@ -10,6 +10,7 @@ os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 from airflow import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+from airflow.operators.bash import BashOperator
 
 current_dir = Path(__file__).resolve().parent
 parent_dir = current_dir.parent.parent
@@ -36,6 +37,19 @@ with DAG(
         conn_id="spark_default",
         application=f"{current_dir}/scripts/run_summary.py",
         verbose = True
+    )
+
+#May or may not have to delete this one. Keeping it for now.
+with DAG(
+    dag_id="streamflow_daily_summary",
+    description="Triggers the daily transaction summary Spark job",
+    schedule="@daily",
+    start_date=datetime(2026, 1, 1),
+    catchup=False,
+) as dag:
+    run_daily_summary = BashOperator(
+        task_id="run_daily_summary",
+        bash_command="spark-submit /opt/airflow/spark/jobs/daily_summary.py",
     )
 
 # IMPORTANT: with overwrite, this will replace all the files from when it has run previously. As is, there is no duplicate prevention.

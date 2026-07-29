@@ -34,11 +34,12 @@ def start_ingestion():
     ])
 
     # Create a Kafka dataframe via the Kafka stream
-    # kafka-queue-name is a placeholder
+    bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    topic = os.environ.get("KAFKA_TOPIC", "streamflow.events")
     kafka_df = spark.readStream \
         .format("kafka") \
-        .option("kafka.bootstrap.servers", "localhost:9092") \
-        .option("subscribe", "kafka-queue-name") \
+        .option("kafka.bootstrap.servers", bootstrap_servers) \
+        .option("subscribe", topic) \
         .load()
     
     # Process the Kafka dataframe into the JSON format, casting types and various information about the entry onto it
@@ -58,3 +59,7 @@ def start_ingestion():
 
     # End the query
     query.awaitTermination()
+
+
+if __name__ == "__main__":
+    start_ingestion()
