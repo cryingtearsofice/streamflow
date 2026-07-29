@@ -28,23 +28,7 @@ def main():
     try:
         # Import data from the raw folder
         project_root = parent_dir
-        # new_data = spark.read.parquet(str(project_root / "data/raw"))
-        mock_schema = StructType([
-            StructField("event_id", StringType(), True),
-            StructField("account_id", StringType(), True),
-            StructField("event_ts", StringType(), True), # to_timestamp_ntz converts this string
-            StructField("event_type", StringType(), True),
-            StructField("source", StringType(), True),
-            StructField("amount", DoubleType(), True),
-            StructField("status", StringType(), True)
-        ])
-
-        mock_rows = [
-            ("1", "acc_101", "2026-07-14 10:00:00", "deposit", "web", 150.00, "completed"),
-            ("2", "acc_102", "2026-07-14 11:30:00", "withdrawal", "mobile", 50.00, "completed")
-        ]
-
-        new_data = spark.createDataFrame(mock_rows, schema=mock_schema)
+        new_data = spark.read.parquet(str(project_root / "data/raw"))
 
         # Create a DataFrame containing the exact transaction details
         details_df = create_transaction_details(new_data)
