@@ -1,0 +1,128 @@
+x-airflow-common-env: &airflow-common-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+  PYTHONPATH: /opt/airflow/src
+
+services:
+  kafka:
+    image: apache/kafka:4.3.1
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  airflow-init:
+    build:
+      context: ..
+      dockerfile: docker/airflow.Dockerfile
+    environment: *airflow-common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../airflow/dags:/opt/airflow/dags
+      - ../src:/opt/airflow/src
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@example.com || true
+    restart: "no"
+
+  airflow-webserver:
+    build:
+      context: ..
+      dockerfile: docker/airflow.Dockerfile
+    command: webserver
+    ports:
+      - "8080:8080"
+    environment: *airflow-common-env
+    volumes:
+      - ../airflow/dags:/opt/airflow/dags
+      - ../spark/jobs:/opt/airflow/spark/jobs
+      - ../src:/opt/airflow/src
+      - ../data:/opt/airflow/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  airflow-scheduler:
+    build:
+      context: ..
+      dockerfile: docker/airflow.Dockerfile
+    command: scheduler
+    environment: *airflow-common-env
+    volumes:
+      - ../airflow/dags:/opt/airflow/dags
+      - ../spark/jobs:/opt/airflow/spark/jobs
+      - ../src:/opt/airflow/src
+      - ../data:/opt/airflow/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  producer:
+    build:
+      context: ..
+      dockerfile: docker/producer.Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  spark:
+    image: apache/spark:3.5.0
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: streamflow.events
+    command: ["/opt/spark/bin/spark-submit", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0", "--conf", "spark.jars.ivy=/tmp/ivy", "/app/spark/jobs/streaming_ingest.py"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

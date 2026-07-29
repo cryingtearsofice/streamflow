@@ -1,5 +1,6 @@
 import itertools
 import json
+import os
 import random
 import time
 from datetime import datetime, timezone
@@ -26,7 +27,10 @@ class ProducerConfig(BaseModel):
 
 def load_config(path: Path = CONFIG_PATH) -> ProducerConfig:
     with open(path) as f:
-        return ProducerConfig(**json.load(f))
+        config = ProducerConfig(**json.load(f))
+    if bootstrap_servers := os.environ.get("KAFKA_BOOTSTRAP_SERVERS"):
+        config.bootstrap_servers = bootstrap_servers
+    return config
 
 
 def generate_valid_event_dict(account_pool: list[str]) -> dict:
