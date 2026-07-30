@@ -247,13 +247,22 @@ def test_invalid_schema_types_and_formats_are_rejected(spark: SparkSession):
                 "amount": "$1,000.00",
                 "status": "POSTED",
             },
+            {
+                "event_id": UUID_5,
+                "event_type": "deposit",
+                "event_ts": "2999-01-01T00:00:00Z",
+                "source": "atm",
+                "account_id": "acct-6",
+                "amount": "10.00",
+                "status": "POSTED",
+            },
         ]
     )
 
     valid_df, rejected_df = apply_quality_rules(df)
 
     assert valid_df.count() == 1
-    assert rejected_df.count() == 4
+    assert rejected_df.count() == 5
 
     rejected_pairs = {
         (row.event_id, row.reason_code)
@@ -265,6 +274,7 @@ def test_invalid_schema_types_and_formats_are_rejected(spark: SparkSession):
         (UUID_1, "INVALID_EVENT_TS"),
         (UUID_2, "INVALID_AMOUNT"),
         (UUID_3, "INVALID_STATUS"),
+        (UUID_5, "INVALID_EVENT_TS"),
     }
 
 

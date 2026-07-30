@@ -75,7 +75,8 @@ def apply_quality_rules(df: DataFrame) -> tuple[DataFrame, DataFrame]:
 	invalid_source = ~F.col("source").isin(*ALLOWED_SOURCES)
 	invalid_status = ~F.col("status").isin(*ALLOWED_STATUSES)
 	invalid_event_id = ~F.col("event_id").cast("string").rlike(UUID_PATTERN)
-	invalid_event_ts = F.expr("try_cast(cast(event_ts as string) as timestamp)").isNull()
+	parsed_event_ts = F.expr("try_cast(cast(event_ts as string) as timestamp)")
+	invalid_event_ts = parsed_event_ts.isNull() | (parsed_event_ts > F.current_timestamp())
 	invalid_amount = ~F.col("amount").cast("string").rlike(AMOUNT_PATTERN)
 
 	duplicate_window = Window.partitionBy("event_id").orderBy(
