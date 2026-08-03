@@ -8,6 +8,7 @@ os.environ["PYSPARK_PYTHON"] = sys.executable
 os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType
 
 current_dir = Path(__file__).resolve().parent
@@ -31,12 +32,18 @@ def main():
         .getOrCreate()
     
     try:
-        # Import data from the raw folder
+        # Import only validated events for curated outputs.
         project_root = parent_dir
-        new_data = spark.read.parquet(str(project_root / "data/raw/events"))
+        new_data = spark.read.parquet(str(project_root / "data/valid/events"))
 
         # Create a DataFrame containing the exact transaction details
         details_df = create_transaction_details(new_data)
+        target_event_date = os.environ.get("TARGET_EVENT_DATE")
+        if target_event_date:
+            details_df = details_df.filter(
+                F.col("event_date") == F.to_date(F.lit(target_event_date))
+            )
+
         write_transaction_details(details_df, output_path=str(project_root / "data/curated/transaction_details"))
 
         # Create a summary DataFrame and write it to a parquet file

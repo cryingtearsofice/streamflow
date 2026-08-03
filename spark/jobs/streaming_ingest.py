@@ -35,11 +35,13 @@ def start_ingestion():
         .option("subscribe", topic) \
         .load()
     
-    raw_directory = project_root / "data" / "raw" / "events"
+    #raw_directory = project_root / "data" / "raw" / "events" #Commented and kept for bronze medallion later
+    valid_directory = project_root / "data" / "valid" / "events"
     reject_directory = project_root / "data" / "rejects" / "events"
     checkpoint_directory = project_root / "data" / "checkpoints" / "streaming_ingest"
 
-    raw_directory.mkdir(parents=True, exist_ok=True)
+    #raw_directory.mkdir(parents=True, exist_ok=True) #Commented and kept for bronze medallion later
+    valid_directory.mkdir(parents=True, exist_ok=True)
     reject_directory.mkdir(parents=True, exist_ok=True)
     checkpoint_directory.mkdir(parents=True, exist_ok=True)
 
@@ -56,7 +58,7 @@ def start_ingestion():
 
         (valid_df.write
             .mode("overwrite")
-            .parquet(str(raw_directory / f"batch_id={batch_id}")))
+            .parquet(str(valid_directory / f"batch_id={batch_id}")))
 
         (rejected_df.write
             .mode("overwrite")

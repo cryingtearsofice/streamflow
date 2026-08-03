@@ -30,9 +30,16 @@ def create_transaction_summary(df: DataFrame, group: str | list[str] | None = No
 
 
 def write_summary(summary_df: DataFrame, output_path: str = "data/curated/daily_summary"):
+    '''
+    This will only overwrite summaries that are dated in the incoming df,
+    Any dates not included will remain uneffected.
+    This does mean that if a date is reproccessed, it must include ALL transactions
+    from that date.
+    '''
+    summary_df.sparkSession.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
     (
         summary_df.write
-        .mode("overwrite")  # Should probably change this to append. Will have to see during integration
+        .mode("overwrite")
         .partitionBy("event_date")
         .parquet(output_path)
     )
@@ -52,9 +59,16 @@ def create_transaction_details(valid_df: DataFrame):
     )
 
 def write_transaction_details(details_df, output_path = "data/curated/transaction_details"):
+    '''
+    This will only overwrite summaries that are dated in the incoming df,
+    Any dates not included will remain uneffected.
+    This does mean that if a date is reproccessed, it must include ALL transactions
+    from that date.
+    '''
+    details_df.sparkSession.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
     (
         details_df.write
-        .mode("overwrite") # Should probably change this to append. Will have to see during integration
+        .mode("overwrite")
         .partitionBy("event_date")
         .parquet(output_path)
     )

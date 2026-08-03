@@ -51,7 +51,7 @@ Edit the JSON file and re-run `docker compose -f docker/compose.yml up -d --buil
 
 ## Output locations
 
-- `data/raw/events/` — Parquet output from the Spark streaming ingestion job.
+- `data/valid/events/` — Parquet output for quality-validated events from the Spark streaming ingestion job.
 - `data/rejects/events/` — Parquet output for records that fail quality validation (includes reason codes).
 - `data/checkpoints/` — Spark's streaming checkpoint state (used to resume correctly after a restart; don't delete unless you want to reprocess from the start).
 - `data/curated/` — output from downstream summary jobs.
