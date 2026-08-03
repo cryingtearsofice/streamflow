@@ -32,7 +32,7 @@ def main():
         .getOrCreate()
     
     try:
-        # Import only validated events for curated outputs.
+        # Import validated events.
         project_root = parent_dir
         new_data = spark.read.parquet(str(project_root / "data/valid/events"))
 
