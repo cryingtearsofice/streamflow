@@ -45,7 +45,7 @@ class TransactionEvent(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-
+## SPARK SCHEMA DECLARATION AND DEFINITION
 TRANSACTION_SPARK_SCHEMA = StructType(
     [
         StructField("schema_version", StringType(), True),
