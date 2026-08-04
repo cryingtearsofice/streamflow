@@ -1,12 +1,23 @@
-from pyspark.sql import SparkSession
+import os
+import sys
+from pathlib import Path
+
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import StructType, StructField, StringType, DecimalType, TimestampType
+
+current_dir = Path(__file__).resolve().parent
+project_root = current_dir.parent.parent
+src_dir = project_root / "src"
+if str(src_dir) not in sys.path:
+    sys.path.append(str(src_dir))
+
+from streamflow.quality import apply_quality_rules
+from streamflow.schemas import TRANSACTION_SPARK_SCHEMA
 
 
 def start_ingestion():
     # Set Hadoop directory, directed here towards it being immediately within the main drive
-    import os
-    os.environ["HADOOP_HOME"] = "C:\\hadoop" 
+    os.environ.setdefault("HADOOP_HOME", "C:\\hadoop")
 
     # Create the Spark environment
     spark = SparkSession.builder \
@@ -14,24 +25,6 @@ def start_ingestion():
         .master("local[*]") \
         .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
         .getOrCreate()
-
-    # Set the directories for the raw data and checkpoints, pointing towards the current file then going up two directories and into the data folder
-    working_directory = os.path.dirname(os.path.abspath(__file__))
-
-    raw_directory = os.path.abspath(os.path.join(working_directory, "..", "..", "data", "raw", "events"))
-    checkpoint_directory = os.path.abspath(os.path.join(working_directory, "..", "..", "data", "checkpoints"))
-
-    # Declare the JSON schema that the Kafka input will be cast to the schema structure we agreed upon
-    transaction_schema = StructType([
-        StructField("schema_version", StringType(), True),
-        StructField("event_id", StringType(), True),
-        StructField("event_type", StringType(), True),
-        StructField("event_ts", TimestampType(), True),
-        StructField("source", StringType(), True),
-        StructField("account_id", StringType(), True),
-        StructField("amount", DecimalType(10, 2), True),
-        StructField("status", StringType(), True)            
-    ])
 
     # Create a Kafka dataframe via the Kafka stream
     bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -42,19 +35,39 @@ def start_ingestion():
         .option("subscribe", topic) \
         .load()
     
-    # Process the Kafka dataframe into the JSON format, casting types and various information about the entry onto it
-    processed_df = kafka_df.select(
-        from_json(col("value").cast("string"), transaction_schema).alias("data"),
+    #raw_directory = project_root / "data" / "raw" / "events" #Commented and kept for bronze medallion later
+    valid_directory = project_root / "data" / "valid" / "events"
+    reject_directory = project_root / "data" / "rejects" / "events"
+    checkpoint_directory = project_root / "data" / "checkpoints" / "streaming_ingest"
+
+    #raw_directory.mkdir(parents=True, exist_ok=True) #Commented and kept for bronze medallion later
+    valid_directory.mkdir(parents=True, exist_ok=True)
+    reject_directory.mkdir(parents=True, exist_ok=True)
+    checkpoint_directory.mkdir(parents=True, exist_ok=True)
+
+    parsed_events_df = kafka_df.select(
+        from_json(col("value").cast("string"), TRANSACTION_SPARK_SCHEMA).alias("data"),
         col("timestamp").alias("kafka_timestamp"),
         col("partition").alias("kafka_partition"),
         col("offset").alias("kafka_offset")
     ).select("data.*", "kafka_timestamp", "kafka_partition", "kafka_offset")
 
+    def process_microbatch(batch_df: DataFrame, batch_id: int) -> None:
+        # Writing each micro-batch to a deterministic path allows safe replay without duplicates.
+        valid_df, rejected_df = apply_quality_rules(batch_df)
+
+        (valid_df.write
+            .mode("overwrite")
+            .parquet(str(valid_directory / f"batch_id={batch_id}")))
+
+        (rejected_df.write
+            .mode("overwrite")
+            .parquet(str(reject_directory / f"batch_id={batch_id}")))
+
     # Open the writestream, writing raw data and checkpoints to their respective directories in the Parquet format
-    query = processed_df.writeStream \
-        .format("parquet") \
-        .option("path", raw_directory) \
-        .option("checkpointLocation", checkpoint_directory) \
+    query = parsed_events_df.writeStream \
+        .foreachBatch(process_microbatch) \
+        .option("checkpointLocation", str(checkpoint_directory)) \
         .start()
 
     # End the query

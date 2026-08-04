@@ -22,7 +22,7 @@ DEFAULT_ARGS = {
     "retries": 4,
     "retry_delay": timedelta(minutes=10),
 }
-
+'''
 with DAG(
     dag_id = "daily_summary",
     default_args = DEFAULT_ARGS,
@@ -37,9 +37,9 @@ with DAG(
         conn_id="spark_default",
         application=f"{current_dir}/scripts/run_summary.py",
         verbose = True
-    )
+    ). #May or may not have to delete this one. Keeping it for now.
+'''
 
-#May or may not have to delete this one. Keeping it for now.
 with DAG(
     dag_id="streamflow_daily_summary",
     description="Triggers the daily transaction summary Spark job",

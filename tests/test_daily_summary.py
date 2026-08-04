@@ -5,10 +5,12 @@ from pathlib import Path
 import pytest
 from pyspark.sql import SparkSession
 
-from spark.jobs.daily_summary import create_transaction_summary
-from spark.jobs.daily_summary import create_transaction_details
-from spark.jobs.daily_summary import write_summary
-from spark.jobs.daily_summary import write_transaction_details
+from spark.jobs.daily_summary import (
+    create_transaction_details,
+    create_transaction_summary,
+    write_summary,
+    write_transaction_details,
+)
 
 
 @pytest.fixture(scope="module")
@@ -22,170 +24,8 @@ def spark() -> Iterator[SparkSession]:
     session.stop()
 
 
-def test_create_transaction_summary_groups_by_event_type_and_source(spark: SparkSession):
-    events = [
-        {
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("100.00"),
-        },
-        {
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("50.00"),
-        },
-        {
-            "event_type": "withdrawal",
-            "source": "atm",
-            "amount": Decimal("25.00"),
-        },
-        {
-            "event_type": "withdrawal",
-            "source": "mobile app",
-            "amount": Decimal("75.00"),
-        },
-    ]
-    df = spark.createDataFrame(events)
-
-    summary_df = create_transaction_summary(df)
-    rows = {
-        (row.event_type, row.source): {
-            "event_count": row.event_count,
-            "total_amount": Decimal(str(row.total_amount)),
-            "avg_amount": Decimal(str(row.avg_amount)),
-        }
-        for row in summary_df.collect()
-    }
-
-    assert rows == {
-        ("deposit", "atm"): {
-            "event_count": 2,
-            "total_amount": Decimal("150.00"),
-            "avg_amount": Decimal("75.00"),
-        },
-        ("withdrawal", "atm"): {
-            "event_count": 1,
-            "total_amount": Decimal("25.00"),
-            "avg_amount": Decimal("25.00"),
-        },
-        ("withdrawal", "mobile app"): {
-            "event_count": 1,
-            "total_amount": Decimal("75.00"),
-            "avg_amount": Decimal("75.00"),
-        },
-    }
-
-
-def test_create_transaction_summary_supports_custom_grouping(spark: SparkSession):
-    events = [
-        {
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("100.00"),
-        },
-        {
-            "event_type": "deposit",
-            "source": "teller",
-            "amount": Decimal("60.00"),
-        },
-        {
-            "event_type": "withdrawal",
-            "source": "atm",
-            "amount": Decimal("30.00"),
-        },
-        {
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("50.00"),
-        },
-    ]
-    df = spark.createDataFrame(events)
-
-    summary_df = create_transaction_summary(df, group="event_type")
-    rows = {
-        row.event_type: {
-            "event_count": row.event_count,
-            "total_amount": Decimal(str(row.total_amount)),
-            "avg_amount": Decimal(str(row.avg_amount)),
-        }
-        for row in summary_df.collect()
-    }
-
-    assert rows == {
-        "deposit": {
-            "event_count": 3,
-            "total_amount": Decimal("210.00"),
-            "avg_amount": Decimal("70.00"),
-        },
-        "withdrawal": {
-            "event_count": 1,
-            "total_amount": Decimal("30.00"),
-            "avg_amount": Decimal("30.00"),
-        },
-    }
-
-
-def test_write_summary(spark: SparkSession, tmp_path: Path):
-    events = [
-        {
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("100.00"),
-        },
-        {
-            "event_type": "deposit",
-            "source": "teller",
-            "amount": Decimal("60.00"),
-        },
-        {
-            "event_type": "withdrawal",
-            "source": "atm",
-            "amount": Decimal("30.00"),
-        },
-        {
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("50.00"),
-        },
-    ]
-    df = spark.createDataFrame(events)
-
-    summary_df = create_transaction_summary(df, group="event_type")
-    output_path = str(tmp_path / "daily_summary")
-
-    write_summary(summary_df, output_path)
-
-    write_summary(summary_df, output_path)
-
-    persisted_df = spark.read.parquet(output_path)
-
-    assert persisted_df.count() == 2
-
-    rows = {
-        row.event_type: {
-            "event_count": row.event_count,
-            "total_amount": Decimal(str(row.total_amount)),
-            "avg_amount": Decimal(str(row.avg_amount)),
-        }
-        for row in persisted_df.collect()
-    }
-
-    assert rows == {
-        "deposit": {
-            "event_count": 3,
-            "total_amount": Decimal("210.00"),
-            "avg_amount": Decimal("70.00"),
-        },
-        "withdrawal": {
-            "event_count": 1,
-            "total_amount": Decimal("30.00"),
-            "avg_amount": Decimal("30.00"),
-        },
-    }
-
-
-def test_create_transaction_details_selects_correct_fields(spark: SparkSession):
-    df = spark.createDataFrame(
+def _sample_valid_events(spark: SparkSession):
+    return spark.createDataFrame(
         [
             {
                 "event_id": "evt-1",
@@ -195,211 +35,218 @@ def test_create_transaction_details_selects_correct_fields(spark: SparkSession):
                 "source": "atm",
                 "amount": Decimal("100.00"),
                 "status": "POSTED",
-                "extra_field": "ignore-me",
-            }
+            },
+            {
+                "event_id": "evt-2",
+                "account_id": "acct-200",
+                "event_ts": "2026-07-13T13:00:00Z",
+                "event_type": "deposit",
+                "source": "atm",
+                "amount": Decimal("50.00"),
+                "status": "PENDING",
+            },
+            {
+                "event_id": "evt-3",
+                "account_id": "acct-300",
+                "event_ts": "2026-07-14T09:15:00Z",
+                "event_type": "withdrawal",
+                "source": "mobile app",
+                "amount": Decimal("25.00"),
+                "status": "POSTED",
+            },
         ]
     )
 
-    details_df = create_transaction_details(df)
-    row = details_df.collect()[0]
 
+def test_create_transaction_details_contains_one_row_per_valid_transaction(spark: SparkSession):
+    valid_df = _sample_valid_events(spark)
+
+    details_df = create_transaction_details(valid_df)
+
+    assert details_df.count() == valid_df.count()
     assert details_df.columns == [
         "event_id",
         "account_id",
         "event_ts",
+        "event_date",
         "event_type",
         "source",
         "amount",
         "status",
     ]
-    assert row.event_id == "evt-1"
-    assert row.account_id == "acct-100"
-    assert row.event_ts.isoformat() == "2026-07-13T12:30:45"
-    assert row.event_type == "deposit"
-    assert row.source == "atm"
-    assert Decimal(str(row.amount)) == Decimal("100.00")
-    assert row.status == "POSTED"
 
 
-def test_create_transaction_details_preserves_multiple_transactions(spark: SparkSession):
-    df = spark.createDataFrame(
-        [
-            {
-                "event_id": "evt-1",
-                "account_id": "acct-100",
-                "event_ts": "2026-07-13T12:30:45Z",
-                "event_type": "deposit",
-                "source": "atm",
-                "amount": Decimal("100.00"),
-                "status": "POSTED",
-                "ignored": "x",
-            },
-            {
-                "event_id": "evt-2",
-                "account_id": "acct-200",
-                "event_ts": "2026-07-13T13:00:00Z",
-                "event_type": "withdrawal",
-                "source": "mobile app",
-                "amount": Decimal("25.00"),
-                "status": "PENDING",
-                "ignored": "y",
-            },
-        ]
-    )
 
-    details_df = create_transaction_details(df)
+def test_transaction_summary_groups_by_event_date_event_type_source(spark: SparkSession):
+    details_df = create_transaction_details(_sample_valid_events(spark))
+
+    summary_df = create_transaction_summary(details_df)
     rows = {
-        row.event_id: {
-            "account_id": row.account_id,
-            "event_ts": row.event_ts.isoformat(),
-            "event_type": row.event_type,
-            "source": row.source,
-            "amount": Decimal(str(row.amount)),
-            "status": row.status,
+        (str(row.event_date), row.event_type, row.source): {
+            "event_count": row.event_count,
+            "total_amount": Decimal(str(row.total_amount)),
+            "avg_amount": Decimal(str(row.avg_amount)),
         }
-        for row in details_df.collect()
+        for row in summary_df.collect()
     }
 
-    assert details_df.count() == 2
     assert rows == {
-        "evt-1": {
-            "account_id": "acct-100",
-            "event_ts": "2026-07-13T12:30:45",
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("100.00"),
-            "status": "POSTED",
+        ("2026-07-13", "deposit", "atm"): {
+            "event_count": 2,
+            "total_amount": Decimal("150.00"),
+            "avg_amount": Decimal("75.00"),
         },
-        "evt-2": {
-            "account_id": "acct-200",
-            "event_ts": "2026-07-13T13:00:00",
-            "event_type": "withdrawal",
-            "source": "mobile app",
-            "amount": Decimal("25.00"),
-            "status": "PENDING",
+        ("2026-07-14", "withdrawal", "mobile app"): {
+            "event_count": 1,
+            "total_amount": Decimal("25.00"),
+            "avg_amount": Decimal("25.00"),
         },
     }
 
 
-def test_write_transaction_details_overwrites_cleanly(spark: SparkSession, tmp_path: Path):
-    first_df = spark.createDataFrame(
-        [
-            {
-                "event_id": "evt-1",
-                "account_id": "acct-100",
-                "event_ts": "2026-07-13T12:30:45Z",
-                "event_type": "deposit",
-                "source": "atm",
-                "amount": Decimal("100.00"),
-                "status": "POSTED",
-            },
-            {
-                "event_id": "evt-2",
-                "account_id": "acct-200",
-                "event_ts": "2026-07-13T13:00:00Z",
-                "event_type": "withdrawal",
-                "source": "mobile app",
-                "amount": Decimal("25.00"),
-                "status": "PENDING",
-            },
-        ]
-    )
+def test_transaction_summary_derives_event_date_from_event_ts_when_missing(spark: SparkSession):
+    raw_df = _sample_valid_events(spark)
 
-    details_df = create_transaction_details(first_df)
-    output_path = str(tmp_path / "transaction_details")
-
-    write_transaction_details(details_df, output_path)
-
-    persisted_df = spark.read.parquet(output_path)
+    summary_df = create_transaction_summary(raw_df)
     rows = {
-        row.event_id: {
-            "account_id": row.account_id,
-            "event_ts": row.event_ts.isoformat(),
-            "event_type": row.event_type,
-            "source": row.source,
-            "amount": Decimal(str(row.amount)),
-            "status": row.status,
-        }
-        for row in persisted_df.collect()
+        (str(row.event_date), row.event_type, row.source): row.event_count
+        for row in summary_df.collect()
     }
 
-    
     assert rows == {
-        "evt-1": {
-            "account_id": "acct-100",
-            "event_ts": "2026-07-13T12:30:45",
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("100.00"),
-            "status": "POSTED",
+        ("2026-07-13", "deposit", "atm"): 2,
+        ("2026-07-14", "withdrawal", "mobile app"): 1,
+    }
+
+
+
+def test_status_summary_groups_by_event_date_event_type_status(spark: SparkSession):
+    details_df = create_transaction_details(_sample_valid_events(spark))
+
+    status_df = create_transaction_summary(
+        details_df,
+        group=["event_date", "event_type", "status"],
+    )
+    rows = {
+        (str(row.event_date), row.event_type, row.status): {
+            "event_count": row.event_count,
+            "total_amount": Decimal(str(row.total_amount)),
+            "avg_amount": Decimal(str(row.avg_amount)),
+        }
+        for row in status_df.collect()
+    }
+
+    assert rows == {
+        ("2026-07-13", "deposit", "POSTED"): {
+            "event_count": 1,
+            "total_amount": Decimal("100.00"),
+            "avg_amount": Decimal("100.00"),
         },
-        "evt-2": {
-            "account_id": "acct-200",
-            "event_ts": "2026-07-13T13:00:00",
-            "event_type": "withdrawal",
-            "source": "mobile app",
-            "amount": Decimal("25.00"),
-            "status": "PENDING",
+        ("2026-07-13", "deposit", "PENDING"): {
+            "event_count": 1,
+            "total_amount": Decimal("50.00"),
+            "avg_amount": Decimal("50.00"),
+        },
+        ("2026-07-14", "withdrawal", "POSTED"): {
+            "event_count": 1,
+            "total_amount": Decimal("25.00"),
+            "avg_amount": Decimal("25.00"),
         },
     }
-    second_df = spark.createDataFrame(
+
+
+
+def test_write_transaction_details_partitions_by_event_date(spark: SparkSession, tmp_path: Path):
+    details_df = create_transaction_details(_sample_valid_events(spark))
+    output_path = tmp_path / "transaction_details"
+
+    write_transaction_details(details_df, str(output_path))
+
+    partition_dirs = sorted(p.name for p in output_path.glob("event_date=*"))
+    assert partition_dirs == ["event_date=2026-07-13", "event_date=2026-07-14"]
+
+
+
+def test_write_summary_partitions_by_event_date(spark: SparkSession, tmp_path: Path):
+    details_df = create_transaction_details(_sample_valid_events(spark))
+    summary_df = create_transaction_summary(details_df)
+    output_path = tmp_path / "daily_summary"
+
+    write_summary(summary_df, str(output_path))
+
+    partition_dirs = sorted(p.name for p in output_path.glob("event_date=*"))
+    assert partition_dirs == ["event_date=2026-07-13", "event_date=2026-07-14"]
+
+
+
+def test_write_status_summary_path_partitions_by_event_date(spark: SparkSession, tmp_path: Path):
+    details_df = create_transaction_details(_sample_valid_events(spark))
+    status_df = create_transaction_summary(
+        details_df,
+        group=["event_date", "event_type", "status"],
+    )
+    output_path = tmp_path / "status_summary"
+
+    write_summary(status_df, str(output_path))
+
+    partition_dirs = sorted(p.name for p in output_path.glob("event_date=*"))
+    assert partition_dirs == ["event_date=2026-07-13", "event_date=2026-07-14"]
+
+
+def test_write_summary_dynamic_overwrite_replaces_only_target_partition(
+    spark: SparkSession, tmp_path: Path
+):
+    details_df = create_transaction_details(_sample_valid_events(spark))
+    output_path = tmp_path / "daily_summary"
+
+    initial_summary_df = create_transaction_summary(details_df)
+    write_summary(initial_summary_df, str(output_path))
+
+    updated_day_df = spark.createDataFrame(
         [
-            {
-                "event_id": "evt-3",
-                "account_id": "acct-100",
-                "event_ts": "2026-07-13T12:30:45Z",
-                "event_type": "deposit",
-                "source": "atm",
-                "amount": Decimal("100.00"),
-                "status": "POSTED",
-            },
             {
                 "event_id": "evt-4",
-                "account_id": "acct-200",
-                "event_ts": "2026-07-13T13:00:00Z",
-                "event_type": "withdrawal",
-                "source": "mobile app",
-                "amount": Decimal("25.00"),
-                "status": "PENDING",
+                "account_id": "acct-400",
+                "event_ts": "2026-07-13T18:00:00Z",
+                "event_type": "deposit",
+                "source": "atm",
+                "amount": Decimal("300.00"),
+                "status": "POSTED",
+            },
+            {
+                "event_id": "evt-5",
+                "account_id": "acct-500",
+                "event_ts": "2026-07-13T19:00:00Z",
+                "event_type": "deposit",
+                "source": "atm",
+                "amount": Decimal("200.00"),
+                "status": "POSTED",
             },
         ]
     )
+    updated_details_df = create_transaction_details(updated_day_df)
+    updated_summary_df = create_transaction_summary(updated_details_df)
+    write_summary(updated_summary_df, str(output_path))
 
-    details_df = create_transaction_details(second_df)
-
-    write_transaction_details(details_df, output_path)
-
-    persisted_df = spark.read.parquet(output_path)
+    persisted_df = spark.read.parquet(str(output_path))
     rows = {
-        row.event_id: {
-            "account_id": row.account_id,
-            "event_ts": row.event_ts.isoformat(),
-            "event_type": row.event_type,
-            "source": row.source,
-            "amount": Decimal(str(row.amount)),
-            "status": row.status,
+        (str(row.event_date), row.event_type, row.source): {
+            "event_count": row.event_count,
+            "total_amount": Decimal(str(row.total_amount)),
+            "avg_amount": Decimal(str(row.avg_amount)),
         }
         for row in persisted_df.collect()
     }
 
-    
     assert rows == {
-        "evt-3": {
-            "account_id": "acct-100",
-            "event_ts": "2026-07-13T12:30:45",
-            "event_type": "deposit",
-            "source": "atm",
-            "amount": Decimal("100.00"),
-            "status": "POSTED",
+        ("2026-07-13", "deposit", "atm"): {
+            "event_count": 2,
+            "total_amount": Decimal("500.00"),
+            "avg_amount": Decimal("250.00"),
         },
-        "evt-4": {
-            "account_id": "acct-200",
-            "event_ts": "2026-07-13T13:00:00",
-            "event_type": "withdrawal",
-            "source": "mobile app",
-            "amount": Decimal("25.00"),
-            "status": "PENDING",
+        ("2026-07-14", "withdrawal", "mobile app"): {
+            "event_count": 1,
+            "total_amount": Decimal("25.00"),
+            "avg_amount": Decimal("25.00"),
         },
     }
-    
-    assert persisted_df.count() == 2
