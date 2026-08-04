@@ -35,15 +35,18 @@ def start_ingestion():
         .option("subscribe", topic) \
         .load()
     
-    #raw_directory = project_root / "data" / "raw" / "events" #Commented and kept for bronze medallion later
+    raw_directory = project_root / "data" / "raw" / "events"
     valid_directory = project_root / "data" / "valid" / "events"
     reject_directory = project_root / "data" / "rejects" / "events"
     checkpoint_directory = project_root / "data" / "checkpoints" / "streaming_ingest"
+    raw_checkpoint_directory = checkpoint_directory / "raw_sink"
+    quality_checkpoint_directory = checkpoint_directory / "quality_sink"
 
-    #raw_directory.mkdir(parents=True, exist_ok=True) #Commented and kept for bronze medallion later
+    raw_directory.mkdir(parents=True, exist_ok=True)
     valid_directory.mkdir(parents=True, exist_ok=True)
     reject_directory.mkdir(parents=True, exist_ok=True)
-    checkpoint_directory.mkdir(parents=True, exist_ok=True)
+    raw_checkpoint_directory.mkdir(parents=True, exist_ok=True)
+    quality_checkpoint_directory.mkdir(parents=True, exist_ok=True)
 
     parsed_events_df = kafka_df.select(
         from_json(col("value").cast("string"), TRANSACTION_SPARK_SCHEMA).alias("data"),
@@ -51,6 +54,13 @@ def start_ingestion():
         col("partition").alias("kafka_partition"),
         col("offset").alias("kafka_offset")
     ).select("data.*", "kafka_timestamp", "kafka_partition", "kafka_offset")
+
+    # Persist parsed events into the raw zone for Bronze loading.
+    raw_query = parsed_events_df.writeStream \
+        .format("parquet") \
+        .option("path", str(raw_directory)) \
+        .option("checkpointLocation", str(raw_checkpoint_directory)) \
+        .start()
 
     def process_microbatch(batch_df: DataFrame, batch_id: int) -> None:
         # Writing each micro-batch to a deterministic path allows safe replay without duplicates.
@@ -67,11 +77,11 @@ def start_ingestion():
     # Open the writestream, writing raw data and checkpoints to their respective directories in the Parquet format
     query = parsed_events_df.writeStream \
         .foreachBatch(process_microbatch) \
-        .option("checkpointLocation", str(checkpoint_directory)) \
+        .option("checkpointLocation", str(quality_checkpoint_directory)) \
         .start()
 
-    # End the query
-    query.awaitTermination()
+    # Keep both streaming queries alive.
+    spark.streams.awaitAnyTermination()
 
 
 if __name__ == "__main__":
