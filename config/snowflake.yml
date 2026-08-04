@@ -1,9 +1,9 @@
 snowflake:
-  account: your_account
-  warehouse: STREAMFLOW_WH
+  account: LSVXPAX-YGC69360
+  warehouse: COMPUTE_WH
   database: STREAMFLOW_DB
   schema: ANALYTICS
-  role: STREAMFLOW_ROLE
+  role: ACCOUNTADMIN
 
 pipeline:
   stage_name: STREAMFLOW_STAGE

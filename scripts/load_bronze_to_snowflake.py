@@ -18,14 +18,26 @@ def require_env(name: str) -> str:
     return value
 
 
+def normalize_schema_config(database: str, schema_value: str) -> str:
+    parts = schema_value.split(".")
+    if len(parts) == 1:
+        return schema_value
+    if len(parts) == 2 and parts[0].upper() == database.upper():
+        return parts[1]
+    raise ValueError(
+        "snowflake.schema must be either '<schema>' or '<database>.<schema>'"
+    )
+
+
 def build_tokens(config: dict, ingest_run_id: str) -> dict[str, str]:
     sf = config["snowflake"]
     pipeline = config["pipeline"]
+    normalized_schema = normalize_schema_config(sf["database"], sf["schema"])
     return {
         "__ROLE__": sf["role"],
         "__WAREHOUSE__": sf["warehouse"],
         "__DATABASE__": sf["database"],
-        "__SCHEMA__": sf["schema"],
+        "__SCHEMA__": normalized_schema,
         "__FILE_FORMAT__": pipeline["file_format"],
         "__STAGE__": pipeline["stage_name"],
         "__BRONZE_TABLE__": pipeline["bronze_table"],
@@ -48,7 +60,10 @@ def read_sql_file(path: Path) -> str:
 def run_sql_script(cursor, sql_text: str, label: str) -> None:
     statements = [stmt.strip() for stmt in sql_text.split(";") if stmt.strip()]
     for statement in statements:
-        cursor.execute(statement)
+        try:
+            cursor.execute(statement)
+        except Exception as exc:
+            raise RuntimeError(f"Failed statement in {label}: {statement}") from exc
     print(f"Executed {len(statements)} statement(s) from {label}")
 
 
@@ -126,6 +141,9 @@ def main() -> None:
 
     pipeline = config["pipeline"]
     ingest_run_id = args.ingest_run_id or pipeline["ingest_run_id"]
+    normalized_schema = normalize_schema_config(
+        config["snowflake"]["database"], config["snowflake"]["schema"]
+    )
 
     create_sql_path = Path(pipeline["sql_create_path"])
     load_sql_path = Path(pipeline["sql_load_path"])
@@ -140,7 +158,7 @@ def main() -> None:
         role=config["snowflake"]["role"],
         warehouse=config["snowflake"]["warehouse"],
         database=config["snowflake"]["database"],
-        schema=config["snowflake"]["schema"],
+        schema=normalized_schema,
     )
 
     try:
@@ -157,7 +175,7 @@ def main() -> None:
             print_copy_history(
                 cursor,
                 config["snowflake"]["database"],
-                config["snowflake"]["schema"],
+                normalized_schema,
                 pipeline["bronze_table"],
             )
 

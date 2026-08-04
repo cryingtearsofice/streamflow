@@ -24,8 +24,8 @@ FROM (
 	SELECT
 		PARSE_JSON($1:raw_payload::STRING) AS raw_payload,
 		TRY_TO_TIMESTAMP_NTZ($1:kafka_timestamp::STRING) AS kafka_timestamp,
-		TRY_TO_NUMBER($1:kafka_partition)::INTEGER AS kafka_partition,
-		TRY_TO_NUMBER($1:kafka_offset)::INTEGER AS kafka_offset,
+		TRY_TO_NUMBER(TO_VARCHAR($1:kafka_partition))::INTEGER AS kafka_partition,
+		TRY_TO_NUMBER(TO_VARCHAR($1:kafka_offset))::INTEGER AS kafka_offset,
 		METADATA$FILENAME AS source_file,
 		'__INGEST_RUN_ID__' AS ingest_run_id
 	FROM @__STAGE__
