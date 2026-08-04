@@ -7,11 +7,18 @@ snowflake:
 
 pipeline:
   stage_name: STREAMFLOW_STAGE
+  silver_stage_name: STREAMFLOW_SILVER_STAGE
   file_format: PARQUET_FORMAT
   bronze_table: bronze_events_raw
+  silver_table: silver_events
+  silver_rejected_table: silver_rejected_events
   raw_events_path: data/raw/events
+  valid_events_path: data/valid/events
+  reject_events_path: data/rejects/events
   sql_create_path: sql/bronze/create_bronze_tables.sql
   sql_load_path: sql/bronze/load_bronze_events.sql
-  silver_table: silver_events
+  silver_sql_create_path: sql/silver/create_silver_tables.sql
+  silver_sql_load_path: sql/silver/transform_silver_events.sql
+  silver_sql_quality_path: sql/silver/quality_checks.sql # IS THIS NAME APPROPIATE ANYMORE?
   stream_topic: streamflow.events
   ingest_run_id: local_001
