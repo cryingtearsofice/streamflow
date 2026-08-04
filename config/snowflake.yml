@@ -18,7 +18,7 @@ pipeline:
   sql_create_path: sql/bronze/create_bronze_tables.sql
   sql_load_path: sql/bronze/load_bronze_events.sql
   silver_sql_create_path: sql/silver/create_silver_tables.sql
-  silver_sql_load_path: sql/silver/transform_silver_events.sql
-  silver_sql_quality_path: sql/silver/quality_checks.sql # IS THIS NAME APPROPIATE ANYMORE?
+  silver_sql_load_path: sql/silver/load_silver_events.sql
+  silver_sql_quality_path: sql/silver/reconcile_silver_events.sql
   stream_topic: streamflow.events
   ingest_run_id: local_001

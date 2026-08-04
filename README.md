@@ -81,6 +81,30 @@ Useful flags:
 - `--skip-copy` to create objects/upload without loading.
 - `--ingest-run-id <value>` to override the run id written to Bronze metadata.
 
+## Silver Snowflake Load
+
+1. Make sure the Spark ingestion job has produced `data/valid/events/` and `data/rejects/events/`.
+2. Reuse the same Snowflake credentials as with Bronze:
+   - `export SNOWFLAKE_USER=<user>`
+   - `export SNOWFLAKE_PASSWORD=<password>`
+3. Run the Silver loader from project root:
+   `python scripts/load_silver_to_snowflake.py`
+
+What this does:
+
+- Creates/ensures the Silver file format, stage, and typed Silver tables.
+- Uploads valid and rejected parquet files into separate stage prefixes.
+- MERGEs valid records into `silver_events` on `event_id`.
+- MERGEs rejected records into `silver_rejected_events` on Kafka partition/offset.
+- Prints a Bronze-vs-Silver reconciliation summary for the active ingest run.
+
+Useful flags:
+
+- `--skip-upload` to merge from files already in the Silver stage.
+- `--skip-merge` to create objects/upload without loading.
+- `--skip-checks` to skip the reconciliation query.
+- `--ingest-run-id <value>` to override the run id used for reconciliation and loaded metadata.
+
 ## Running Kafka without Docker (not needed if using Compose)
 
 The Compose setup above runs Kafka for you. This is only relevant if you want to run `producer.py` directly against a broker without Docker at all:
