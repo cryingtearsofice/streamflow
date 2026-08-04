@@ -1,0 +1,17 @@
+snowflake:
+  account: your_account
+  warehouse: STREAMFLOW_WH
+  database: STREAMFLOW_DB
+  schema: ANALYTICS
+  role: STREAMFLOW_ROLE
+
+pipeline:
+  stage_name: STREAMFLOW_STAGE
+  file_format: PARQUET_FORMAT
+  bronze_table: bronze_events_raw
+  raw_events_path: data/raw/events
+  sql_create_path: sql/bronze/create_bronze_tables.sql
+  sql_load_path: sql/bronze/load_bronze_events.sql
+  silver_table: silver_events
+  stream_topic: streamflow.events
+  ingest_run_id: local_001
