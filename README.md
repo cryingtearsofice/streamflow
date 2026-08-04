@@ -5,7 +5,7 @@ A synthetic banking transaction pipeline: a Python producer generates and valida
 ## Prerequisites
 
 - **Docker Desktop** (with the WSL2 backend) — this is the only thing required to run the whole platform. Everything below assumes it's installed and running.
-- **Python 3.13** — only needed if you want to run `producer.py` directly on your machine instead of through Docker (e.g. for quick iteration). If so, also install its dependencies: `pip install -r docker/producer-requirements.txt`.
+- **Python 3.13** — only needed if you want to run `producer.py`, Bronze load, or Silver load directly on your machine instead of through Docker (e.g. for quick iteration). Install once: `pip install -r docker/producer-requirements.txt` and .
 
 ## Running the platform
 
@@ -59,13 +59,11 @@ Edit the JSON file and re-run `docker compose -f docker/compose.yml up -d --buil
 
 ## Bronze Snowflake Load
 
-1. Install dependencies:
-   `pip install -r docker/snowflake-requirements.txt`
-2. Set credentials in your shell:
+1. Set credentials in your shell:
    - `export SNOWFLAKE_USER=<user>`
    - `export SNOWFLAKE_PASSWORD=<password>`
-3. Update [config/snowflake.yml](config/snowflake.yml) with your Snowflake identifiers.
-4. Run the loader from project root:
+2. Update [config/snowflake.yml](config/snowflake.yml) with your Snowflake identifiers.
+3. Run the loader from project root:
    `python scripts/load_bronze_to_snowflake.py`
 
 What this does:
