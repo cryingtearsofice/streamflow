@@ -53,8 +53,33 @@ Edit the JSON file and re-run `docker compose -f docker/compose.yml up -d --buil
 
 - `data/valid/events/` — Parquet output for quality-validated events from the Spark streaming ingestion job.
 - `data/rejects/events/` — Parquet output for records that fail quality validation (includes reason codes).
+- `data/raw/events/` — Bronze source parquet path used by Snowflake stage upload.
 - `data/checkpoints/` — Spark's streaming checkpoint state (used to resume correctly after a restart; don't delete unless you want to reprocess from the start).
 - `data/curated/` — output from downstream summary jobs.
+
+## Bronze Snowflake Load
+
+1. Install dependencies:
+   `pip install -r docker/snowflake-requirements.txt`
+2. Set credentials in your shell:
+   - `export SNOWFLAKE_USER=<user>`
+   - `export SNOWFLAKE_PASSWORD=<password>`
+3. Update [config/snowflake.yml](config/snowflake.yml) with your Snowflake identifiers.
+4. Run the loader from project root:
+   `python scripts/load_bronze_to_snowflake.py`
+
+What this does:
+
+- Creates/ensures the Bronze file format, stage, and table.
+- Uploads parquet files from `data/raw/events/` to the stage.
+- Executes `COPY INTO bronze_events_raw`.
+- Prints recent copy history for idempotency validation.
+
+Useful flags:
+
+- `--skip-upload` to run SQL only.
+- `--skip-copy` to create objects/upload without loading.
+- `--ingest-run-id <value>` to override the run id written to Bronze metadata.
 
 ## Running Kafka without Docker (not needed if using Compose)
 
