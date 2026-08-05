@@ -78,7 +78,7 @@ services:
       dockerfile: docker/airflow.Dockerfile
     command: webserver
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment: *airflow-common-env
     volumes:
       - ../airflow/dags:/opt/airflow/dags
@@ -125,7 +125,9 @@ services:
         condition: service_healthy
 
   spark:
-    image: apache/spark:3.5.0
+    build:
+      context: ..
+      dockerfile: docker/spark.Dockerfile
     working_dir: /app
     volumes:
       - ..:/app
