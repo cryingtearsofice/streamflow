@@ -64,3 +64,12 @@ CREATE TABLE IF NOT EXISTS fact_transactions (
     source              STRING,
     loaded_at           TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
+
+/* Create fallback rows to prevent null returns. */
+INSERT INTO dim_event_type (event_type_key, event_type)
+SELECT -1, 'UNASSIGNED_EVENT_TYPE'
+WHERE NOT EXISTS (SELECT 1 FROM dim_event_type WHERE event_type_key = -1);
+
+INSERT INTO dim_account (account_key, account_id, first_seen_at)
+SELECT -1, 'UNASSIGNED_ACCOUNT', '1970-01-01 00:00:00'::TIMESTAMP_NTZ
+WHERE NOT EXISTS (SELECT 1 FROM dim_account WHERE account_key = -1);
