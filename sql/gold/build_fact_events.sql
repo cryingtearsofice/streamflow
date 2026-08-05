@@ -12,8 +12,8 @@ USING (
     SELECT 
         s.event_id,
         REPLACE(TO_DATE(s.event_ts)::STRING, '-', '')::INT AS date_key,
-        dt.event_type_key,
-        da.account_key,
+        COALESCE(dt.event_type_key, -1) AS event_type_key, -- Missing values default to the fallback entry
+        COALESCE(da.account_key, -1) AS account_key, -- ditto
         s.event_ts,
         s.source,
         s.kafka_partition,
@@ -34,8 +34,8 @@ USING (
     SELECT 
         s.event_id AS transaction_id,
         REPLACE(TO_DATE(s.event_ts)::STRING, '-', '')::INT AS date_key,
-        dt.event_type_key,
-        da.account_key,
+        COALESCE(dt.event_type_key, -1) AS event_type_key, -- Missing values default to the fallback entry
+        COALESCE(da.account_key, -1) AS account_key, -- ditto
         s.event_ts,
         s.amount,
         s.status,
