@@ -5,6 +5,19 @@ x-airflow-common-env: &airflow-common-env
   AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
   PYTHONPATH: /opt/airflow/src
 
+x-snowflake-loader-common: &snowflake-loader-common
+  build:
+    context: ..
+    dockerfile: docker/snowflake.Dockerfile
+  working_dir: /app
+  volumes:
+    - ..:/app
+  environment:
+    SNOWFLAKE_USER: ${SNOWFLAKE_USER:-}
+    SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD:-}
+  profiles:
+    - snowflake
+
 services:
   kafka:
     image: apache/kafka:4.3.1
@@ -124,6 +137,14 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+
+  snowflake-bronze-loader:
+    <<: *snowflake-loader-common
+    command: ["python", "scripts/load_bronze_to_snowflake.py", "--config", "config/snowflake.yml"]
+
+  snowflake-silver-loader:
+    <<: *snowflake-loader-common
+    command: ["python", "scripts/load_silver_to_snowflake.py", "--config", "config/snowflake.yml"]
 
 volumes:
   postgres_data:
