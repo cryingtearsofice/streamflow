@@ -73,3 +73,48 @@ WHERE NOT EXISTS (SELECT 1 FROM dim_event_type WHERE event_type_key = -1);
 INSERT INTO dim_account (account_key, account_id, first_seen_at)
 SELECT -1, 'UNASSIGNED_ACCOUNT', '1970-01-01 00:00:00'::TIMESTAMP_NTZ
 WHERE NOT EXISTS (SELECT 1 FROM dim_account WHERE account_key = -1);
+
+/* Create aggregation tables. */
+/* Tallies the total daily change in revenue by transaction type. */
+CREATE TABLE IF NOT EXISTS gold_daily_fluctuation_by_type (
+    date_key                INT PRIMARY KEY REFERENCES dim_date(date_key),
+    calendar_date           DATE NOT NULL,
+    rev_deposit             DECIMAL(18, 2) DEFAULT 0.00,
+    rev_withdrawal          DECIMAL(18, 2) DEFAULT 0.00,
+    rev_transfer            DECIMAL(18, 2) DEFAULT 0.00,
+    rev_purchase            DECIMAL(18, 2) DEFAULT 0.00,
+    rev_fee_charge          DECIMAL(18, 2) DEFAULT 0.00,
+    rev_reversal            DECIMAL(18, 2) DEFAULT 0.00,
+    total_combined_revenue  DECIMAL(18, 2) DEFAULT 0.00,
+    updated_at              TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+/* Averages the transaction counts by day of the week. */
+CREATE TABLE IF NOT EXISTS gold_weekday_averages (
+    day_of_week             INT PRIMARY KEY,
+    day_name                STRING NOT NULL,
+    avg_daily_transactions  DECIMAL(12, 2) NOT NULL,
+    updated_at              TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+/* Sums the total use of each transaction source to determine popularity. */
+CREATE TABLE IF NOT EXISTS gold_source_popularity (
+    source                  STRING PRIMARY KEY,
+    total_transactions      INT DEFAULT 0,
+    updated_at              TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+/* Calculates the percentage of each transaction status relative to the total. */
+CREATE TABLE IF NOT EXISTS gold_success_percentages (
+    status                  STRING PRIMARY KEY,
+    percentage_of_total     DECIMAL(5, 2) DEFAULT 0.00,
+    updated_at              TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+/* Calculates the total revenue for each account. Deposits and reversals are added, while withdrawals and fees are subtracted. Transfers are treated as net-neutral, as there's no way to determine the direction within the data. */
+CREATE TABLE IF NOT EXISTS gold_account_revenue (
+    account_key             INT PRIMARY KEY REFERENCES dim_account(account_key),
+    account_id              STRING NOT NULL,
+    total_revenue           DECIMAL(18, 2) DEFAULT 0.00,
+    updated_at              TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
