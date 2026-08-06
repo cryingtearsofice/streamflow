@@ -32,6 +32,8 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
       interval: 10s
@@ -83,8 +85,11 @@ services:
     volumes:
       - ../airflow/dags:/opt/airflow/dags
       - ../spark/jobs:/opt/airflow/spark/jobs
+      - ../scripts:/opt/airflow/scripts
       - ../src:/opt/airflow/src
       - ../data:/opt/airflow/data
+      - ../config:/opt/airflow/config
+      - ../sql:/opt/airflow/sql
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,8 +111,11 @@ services:
     volumes:
       - ../airflow/dags:/opt/airflow/dags
       - ../spark/jobs:/opt/airflow/spark/jobs
+      - ../scripts:/opt/airflow/scripts
       - ../src:/opt/airflow/src
       - ../data:/opt/airflow/data
+      - ../config:/opt/airflow/config
+      - ../sql:/opt/airflow/sql
     depends_on:
       postgres:
         condition: service_healthy
@@ -150,3 +158,4 @@ services:
 
 volumes:
   postgres_data:
+  kafka_data:

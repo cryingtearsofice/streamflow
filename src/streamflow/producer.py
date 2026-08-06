@@ -105,7 +105,7 @@ def run(config: ProducerConfig):
             print(f"corruption = {corruption_name!r:20} -> {payload}")
             kafka_producer.produce(
                 config.topic,
-                key=d["account_id"],
+                key=d.get("account_id"),
                 value=payload,
                 callback=delivery_report,
             )

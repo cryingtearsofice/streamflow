@@ -83,7 +83,7 @@ def upload_parquet_files(cursor, stage_name: str, local_root: Path, stage_prefix
 
     uploaded = 0
     for parquet_file in parquet_files:
-        file_uri = parquet_file.resolve().as_uri().replace("'", "''")
+        file_uri = parquet_file.resolve().as_uri().replace("%3D", "=").replace("'", "''")
         target_path = stage_target_path(stage_name, stage_prefix, local_root, parquet_file)
         put_sql = (
             f"PUT '{file_uri}' {target_path} "

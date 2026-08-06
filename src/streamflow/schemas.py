@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
-from pyspark.sql.types import StringType, StructField, StructType
+from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType, TimestampType
 from pydantic import BaseModel, Field
 
 class TransactionType(str, Enum):
@@ -46,7 +46,13 @@ class TransactionEvent(BaseModel):
     model_config = {"extra": "forbid"}
 
 ## SPARK SCHEMA DECLARATION AND DEFINITION
-TRANSACTION_SPARK_SCHEMA = StructType(
+
+# Shape of the JSON payload in the Kafka message value - business fields only.
+# Kafka's own envelope metadata (timestamp/partition/offset) is never part of this
+# JSON body, so it must NOT be listed here - from_json() would otherwise produce
+# null placeholder columns that collide with the real kafka_* columns added
+# separately from Kafka's message metadata.
+TRANSACTION_JSON_SCHEMA = StructType(
     [
         StructField("schema_version", StringType(), True),
         StructField("event_id", StringType(), True),
@@ -56,6 +62,18 @@ TRANSACTION_SPARK_SCHEMA = StructType(
         StructField("account_id", StringType(), True),
         StructField("amount", StringType(), True),
         StructField("status", StringType(), True),
+    ]
+)
+
+# Target schema for quality.py's output alignment - includes the Kafka envelope
+# metadata columns, since by that point they're already real columns on the
+# DataFrame (added by streaming_ingest.py after JSON parsing).
+TRANSACTION_SPARK_SCHEMA = StructType(
+    [
+        *TRANSACTION_JSON_SCHEMA,
+        StructField("kafka_timestamp", TimestampType(), True),
+        StructField("kafka_partition", IntegerType(), True),
+        StructField("kafka_offset", LongType(), True),
     ]
 )
 

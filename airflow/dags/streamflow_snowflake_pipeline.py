@@ -10,12 +10,12 @@ os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 from airflow import DAG
 
 # Comment out one of the following depending on your Airflow version.
-from airflow.providers.standard.operators.bash import BashOperator # Use for 3.x versions
-from airflow.providers.standard.operators.empty import EmptyOperator # ^
-# from airflow.operators.bash import BashOperator # Use for 2.x versions
-# from airflow.operators.empty import EmptyOperator # ^
+# from airflow.providers.standard.operators.bash import BashOperator # Use for 3.x versions
+# from airflow.providers.standard.operators.empty import EmptyOperator # ^
+from airflow.operators.bash import BashOperator # Use for 2.x versions
+from airflow.operators.empty import EmptyOperator # ^
 
-root_dir = Path(__file__).resolve().parent.parent.parent
+root_dir = Path("/opt/airflow")
 
 DEFAULT_ARGS = {
     "owner": "revature_wilmington_team",

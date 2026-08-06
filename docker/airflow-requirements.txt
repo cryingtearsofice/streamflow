@@ -1,1 +1,3 @@
 pyspark==3.5.0
+snowflake-connector-python>=3.12,<4
+PyYAML>=6,<7

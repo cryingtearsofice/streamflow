@@ -37,8 +37,8 @@ FROM (
 		TRY_TO_DECIMAL($1:amount::STRING, 10, 2) AS amount,
 		$1:status::STRING AS status,
 		TRY_TO_TIMESTAMP_NTZ($1:kafka_timestamp::STRING) AS kafka_timestamp,
-		TRY_TO_NUMBER($1:kafka_partition)::INTEGER AS kafka_partition,
-		TRY_TO_NUMBER($1:kafka_offset)::INTEGER AS kafka_offset,
+		$1:kafka_partition::INTEGER AS kafka_partition,
+		$1:kafka_offset::INTEGER AS kafka_offset,
 		METADATA$FILENAME AS source_file,
 		'__INGEST_RUN_ID__' AS ingest_run_id
 	FROM @__STAGE__/valid/events
@@ -130,8 +130,8 @@ FROM (
 		$1:amount::STRING AS amount,
 		$1:status::STRING AS status,
 		TRY_TO_TIMESTAMP_NTZ($1:kafka_timestamp::STRING) AS kafka_timestamp,
-		TRY_TO_NUMBER($1:kafka_partition)::INTEGER AS kafka_partition,
-		TRY_TO_NUMBER($1:kafka_offset)::INTEGER AS kafka_offset,
+		$1:kafka_partition::INTEGER AS kafka_partition,
+		$1:kafka_offset::INTEGER AS kafka_offset,
 		$1:reason_code::STRING AS reason_code,
 		$1:reason_detail::STRING AS reason_detail,
 		METADATA$FILENAME AS source_file,
