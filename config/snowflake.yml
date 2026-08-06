@@ -22,3 +22,6 @@ pipeline:
   silver_sql_quality_path: sql/silver/reconcile_silver_events.sql
   stream_topic: streamflow.events
   ingest_run_id: local_001
+  gold_sql_create_path: sql/gold/create_gold_tables.sql
+  gold_sql_dimensions_path: sql/gold/build_dimensions.sql
+  gold_sql_facts_path: sql/gold/build_fact_events.sql

@@ -1,4 +1,6 @@
-from pyspark.sql import DataFrame
+from pathlib import Path
+
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
 
@@ -72,3 +74,34 @@ def write_transaction_details(details_df, output_path = "data/curated/transactio
         .partitionBy("event_date")
         .parquet(output_path)
     )
+
+
+def run_daily_summary():
+    project_root = Path(__file__).resolve().parent.parent.parent
+    valid_events_path = project_root / "data" / "valid" / "events"
+
+    if not any(valid_events_path.rglob("*.parquet")):
+        print(f"No valid events found under {valid_events_path} - nothing to summarize yet.")
+        return
+
+    spark = (
+        SparkSession.builder
+        .appName("DailySummary")
+        .master("local[*]")
+        .getOrCreate()
+    )
+
+    valid_df = spark.read.parquet(str(valid_events_path))
+
+    write_summary(
+        create_transaction_summary(valid_df),
+        str(project_root / "data" / "curated" / "daily_summary"),
+    )
+    write_transaction_details(
+        create_transaction_details(valid_df),
+        str(project_root / "data" / "curated" / "transaction_details"),
+    )
+
+
+if __name__ == "__main__":
+    run_daily_summary()

@@ -9,7 +9,6 @@ os.environ["PYSPARK_PYTHON"] = sys.executable
 os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 from airflow import DAG
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.bash import BashOperator
 
 current_dir = Path(__file__).resolve().parent

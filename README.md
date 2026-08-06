@@ -22,7 +22,7 @@ This single command builds and starts everything:
 | `kafka` | Single-node Kafka broker (KRaft mode). Internal address `kafka:9092`. |
 | `postgres` | Airflow's metadata database. |
 | `airflow-init` | One-time setup: runs DB migrations and creates the admin user. Exits after it finishes — this is expected, not a failure. |
-| `airflow-webserver` | Airflow UI at [localhost:8080](http://localhost:8080) — log in with `admin` / `admin`. |
+| `airflow-webserver` | Airflow UI at [localhost:8081](http://localhost:8081) — log in with `admin` / `admin`. (Mapped to host port 8081, not 8080, since 8080 is commonly already in use.) |
 | `airflow-scheduler` | Runs and schedules the DAGs. |
 | `producer` | Generates synthetic banking transaction events (some deliberately invalid, to exercise validation) and publishes them to the `streamflow.events` Kafka topic. Runs for a configured number of events, then exits — this is expected. |
 | `spark` | Long-running Structured Streaming job. Consumes `streamflow.events` continuously and writes it out as Parquet. |
@@ -45,7 +45,7 @@ Edit the JSON file and re-run `docker compose -f docker/compose.yml up -d --buil
 
 ## Triggering the daily summary DAG
 
-1. Open [localhost:8080](http://localhost:8080), log in with `admin` / `admin`.
+1. Open [localhost:8081](http://localhost:8081), log in with `admin` / `admin`.
 2. Find the `streamflow_daily_summary` DAG and un-pause it (or trigger it manually with the run button) — it also runs automatically once a day.
 3. The DAG's single task runs `spark-submit` against `spark/jobs/daily_summary.py` inside the Airflow container.
 
