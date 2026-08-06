@@ -77,6 +77,11 @@ def main() -> None:
         action="store_true",
         help="Skip fact pipeline transformation and loading loops.",
     )
+    parser.add_argument(
+        "--skip-aggregations",
+        action="store_true",
+        help="Skip aggregation calculations.",
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -90,6 +95,7 @@ def main() -> None:
     create_sql_path = Path(pipeline["gold_sql_create_path"])
     dimensions_sql_path = Path(pipeline["gold_sql_dimensions_path"])
     facts_sql_path = Path(pipeline["gold_sql_facts_path"])
+    aggregations_sql_path = Path(pipeline["gold_sql_aggregations_path"])
 
     tokens = build_tokens(config)
 
@@ -117,6 +123,10 @@ def main() -> None:
         if not args.skip_facts:
             facts_sql = render_sql(read_sql_file(facts_sql_path), tokens)
             run_sql_script(cursor, facts_sql, str(facts_sql_path))
+
+        if not args.skip_aggregations:
+            aggregations_sql = render_sql(read_sql_file(aggregations_sql_path), tokens)
+            run_sql_script(cursor, aggregations_sql, str(aggregations_sql_path))
 
     finally:
         conn.close()
