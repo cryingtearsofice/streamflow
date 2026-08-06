@@ -27,6 +27,7 @@ env/
 !data/curated/.gitkeep
 !data/rejects/.gitkeep
 !data/checkpoints/.gitkeep
+!data/valid/.gitkeep
 
 # Logs
 *.log
@@ -36,5 +37,6 @@ data/raw/
 data/curated/
 data/rejects/
 data/checkpoints/
+data/valid/
 airflow/logs/
 spark-warehouse/
