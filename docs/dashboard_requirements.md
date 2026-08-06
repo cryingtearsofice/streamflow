@@ -2,7 +2,7 @@
 
 ## Connecting Power BI to the Gold layer
 
-This can't be done yet — the Gold layer (Epic 9) doesn't exist in Snowflake yet. These are the intended steps once `dim_date`, `dim_event_type`, `dim_account`, `fact_events`, and `fact_transactions` are built:
+The Gold DDL now exists for real (`sql/gold/create_gold_tables.sql`, merged via the Epic 11/12 PR) — `dim_date`, `dim_event_type`, `dim_account`, `fact_events`, `fact_transactions` are all defined, and there's a loader (`scripts/load_gold_to_snowflake.py`) plus a full orchestration DAG (`streamflow_snowflake_pipeline.py`). Before actually connecting, confirm someone has run that pipeline against a live Snowflake account — DDL existing isn't the same as the tables having real data. Steps once that's confirmed:
 
 1. Open Power BI Desktop → **Get Data** → search for **Snowflake**.
 2. Enter the server (`<account>.snowflakecomputing.com`) and warehouse from `config/snowflake.yml` (`STREAMFLOW_WH`).
@@ -19,7 +19,7 @@ This can't be done yet — the Gold layer (Epic 9) doesn't exist in Snowflake ye
 **KPI cards** (top row): `[Total Events]`, `[Distinct Accounts]`, `[Key Event Count]`, `[Event Rate]` — see [`powerbi/measures.md`](../powerbi/measures.md) for the DAX.
 
 **Events Over Time** — line chart.
-- X-axis: `dim_date[date]` (use the date hierarchy so it drills Year → Month → Day).
+- X-axis: `dim_date[calendar_date]` (use the date hierarchy so it drills Year → Month → Day).
 - Values: `[Total Events]`. Optionally add `[Key Event Count]` as a second line to visually compare total volume against successfully-posted transactions.
 
 **Events by Source** — clustered column chart.
@@ -31,7 +31,7 @@ This can't be done yet — the Gold layer (Epic 9) doesn't exist in Snowflake ye
 - Values: `[Total Events]`.
 
 **Filters/slicers** — placed at report level (not page level) so they also affect the KPI cards and the Transactions page (11.4):
-- **Date** slicer bound to `dim_date[date]`, default range covering all available data.
+- **Date** slicer bound to `dim_date[calendar_date]`, default range covering all available data.
 - **Source** slicer bound to `fact_events[source]`.
 - **Event Type** slicer bound to `dim_event_type[event_type]`.
 
@@ -40,7 +40,7 @@ This can't be done yet — the Gold layer (Epic 9) doesn't exist in Snowflake ye
 Same report-level Date/Source/Event Type filters from the Overview page apply here too.
 
 **Transaction Amount Over Time** — line chart.
-- X-axis: `dim_date[date]`.
+- X-axis: `dim_date[calendar_date]`.
 - Values: `[Total Transaction Amount]`.
 - Keep `[Average Transaction Amount]` as a *separate* visual below rather than a second line on the same chart — sum and average are on very different scales and mixing them on one axis is misleading.
 
@@ -55,7 +55,7 @@ Same report-level Date/Source/Event Type filters from the Overview page apply he
 - Values: `[Average Transaction Amount]`.
 - Useful for spotting whether failed/reversed transactions skew toward unusually large or small amounts.
 
-DAX measure definitions are drafted in [`powerbi/measures.md`](../powerbi/measures.md), ready to paste in once the Gold layer exists — column names there should be double-checked against whatever the finalized Gold DDL actually uses.
+DAX measure definitions are in [`powerbi/measures.md`](../powerbi/measures.md), now checked against the real Gold DDL.
 
 ## Validation
 

@@ -1,6 +1,6 @@
 # Power BI DAX Measures — KPI Summary Page
 
-Drafted ahead of the Gold layer existing (Epic 9). References `fact_events`, `fact_transactions`, and `dim_account` as specified in the Phase 2 backlog — adjust names here if the actual Gold DDL ends up differing.
+Column names below are confirmed against the real Gold DDL (`sql/gold/create_gold_tables.sql`) as of the Epic 11/12 merge — no longer guesses.
 
 ## Total Events
 
@@ -12,10 +12,10 @@ Total Events = COUNTROWS(fact_events)
 
 ## Distinct Accounts
 
-Number of unique accounts represented in the event stream — the "distinct entities" KPI from the spec, using `account_id` as our entity.
+Number of unique accounts represented in the event stream — the "distinct entities" KPI from the spec. `fact_events` doesn't carry `account_id` directly — it's a surrogate `account_key` joining to `dim_account`, but counting distinct keys is equivalent to counting distinct accounts.
 
 ```dax
-Distinct Accounts = DISTINCTCOUNT(fact_events[account_id])
+Distinct Accounts = DISTINCTCOUNT(fact_events[account_key])
 ```
 
 ## Key Event Count (Posted Transactions)
@@ -65,9 +65,10 @@ Transaction Count = COUNTROWS(fact_transactions)
 ---
 
 **Not separate measures** — these two KPIs from the spec are just groupings of `[Total Events]` on the visual, not new DAX:
-- **Events by Source**: `[Total Events]` on a bar/column chart, axis = `fact_events[source]` (or `dim_event_type` if source lives there).
-- **Events Over Time**: `[Total Events]` on a line chart, axis = `dim_date[date]`.
+- **Events by Source**: `[Total Events]` on a bar/column chart, axis = `fact_events[source]` (confirmed real column).
+- **Events Over Time**: `[Total Events]` on a line chart, axis = `dim_date[calendar_date]` (not `[date]` — confirmed against the real DDL).
 
-## Open question for whoever finishes the Gold schema
+## Still worth double-checking before pasting into Power BI
 
-Confirm the exact column names (`account_id` vs. a surrogate `account_key`, `status` vs. an enum-coded column) match what's actually in `fact_events`/`fact_transactions` before pasting these in — written against the names used in the backlog stories, not a finalized DDL.
+- Whether the Snowflake pipeline (`scripts/load_gold_to_snowflake.py`, or the `streamflow_snowflake_pipeline` DAG) has actually been *run* against a live Snowflake account yet — DDL existing isn't the same as tables having real data in them.
+- `fact_events`/`fact_transactions` both have a `-1` "UNASSIGNED" fallback row in `dim_event_type`/`dim_account` for unmatched foreign keys (see `create_gold_tables.sql`) — decide whether these fallback rows should be filtered out of KPI counts or intentionally included as a data-quality signal.

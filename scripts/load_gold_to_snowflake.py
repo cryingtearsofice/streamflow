@@ -45,7 +45,19 @@ def read_sql_file(path: Path) -> str:
         return handle.read()
 
 def run_sql_script(cursor, sql_text: str, label: str) -> None:
-    statements = [stmt.strip() for stmt in sql_text.split(";") if stmt.strip()]
+    statements = []
+    for stmt in sql_text.split(";"):
+        stmt = stmt.strip()
+        if not stmt:
+            continue
+        # Skip fragments that are comment-only, e.g. a trailing same-line comment
+        # left over after the file's final semicolon (`...); -- note`).
+        has_real_sql = any(
+            line.strip() and not line.strip().startswith("--")
+            for line in stmt.splitlines()
+        )
+        if has_real_sql:
+            statements.append(stmt)
     for statement in statements:
         try:
             cursor.execute(statement)

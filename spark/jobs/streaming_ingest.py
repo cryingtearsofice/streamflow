@@ -12,7 +12,7 @@ if str(src_dir) not in sys.path:
     sys.path.append(str(src_dir))
 
 from streamflow.quality import apply_quality_rules
-from streamflow.schemas import TRANSACTION_SPARK_SCHEMA
+from streamflow.schemas import TRANSACTION_JSON_SCHEMA
 
 
 def start_ingestion():
@@ -49,7 +49,7 @@ def start_ingestion():
     quality_checkpoint_directory.mkdir(parents=True, exist_ok=True)
 
     parsed_events_df = kafka_df.select(
-        from_json(col("value").cast("string"), TRANSACTION_SPARK_SCHEMA).alias("data"),
+        from_json(col("value").cast("string"), TRANSACTION_JSON_SCHEMA).alias("data"),
         col("timestamp").alias("kafka_timestamp"),
         col("partition").alias("kafka_partition"),
         col("offset").alias("kafka_offset")

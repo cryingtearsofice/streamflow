@@ -75,7 +75,7 @@ def upload_parquet_files(cursor, stage_name: str, raw_events_path: Path) -> int:
 
     uploaded = 0
     for parquet_file in parquet_files:
-        file_uri = parquet_file.resolve().as_uri().replace("'", "''")
+        file_uri = parquet_file.resolve().as_uri().replace("%3D", "=").replace("'", "''")
         put_sql = (
             f"PUT '{file_uri}' @{stage_name} "
             "AUTO_COMPRESS=FALSE OVERWRITE=FALSE"
