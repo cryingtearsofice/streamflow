@@ -88,6 +88,8 @@ services:
       - ../scripts:/opt/airflow/scripts
       - ../src:/opt/airflow/src
       - ../data:/opt/airflow/data
+      - ../config:/opt/airflow/config
+      - ../sql:/opt/airflow/sql
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,6 +114,8 @@ services:
       - ../scripts:/opt/airflow/scripts
       - ../src:/opt/airflow/src
       - ../data:/opt/airflow/data
+      - ../config:/opt/airflow/config
+      - ../sql:/opt/airflow/sql
     depends_on:
       postgres:
         condition: service_healthy

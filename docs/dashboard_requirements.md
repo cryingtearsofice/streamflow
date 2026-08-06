@@ -59,4 +59,24 @@ DAX measure definitions are in [`powerbi/measures.md`](../powerbi/measures.md), 
 
 ## Validation
 
-Before treating any dashboard number as trustworthy, spot-check it against a direct Snowflake query on the Gold tables (per story 11.5) — document a couple of these comparisons here once done.
+Spot-checked against direct Snowflake queries on the Gold tables (2026-08-06), after a full clean pipeline run (500 raw -> 409 valid / 91 rejected -> Gold):
+
+| KPI | Snowflake query result | Power BI card |
+|---|---|---|
+| Total Events | 409 | _confirm in PBI_ |
+| Distinct Accounts | 50 | _confirm in PBI_ |
+| Key Event Count (status = POSTED) | 97 | _confirm in PBI_ |
+| Event Rate | 0.2372 | _confirm in PBI_ |
+| Transaction Count | 409 | _confirm in PBI_ |
+| Total Transaction Amount | $964,099.10 | _confirm in PBI_ |
+| Average Transaction Amount | $2,357.21 | _confirm in PBI_ |
+
+Queries used:
+```sql
+SELECT COUNT(*) FROM fact_events;
+SELECT COUNT(DISTINCT account_key) FROM fact_events;
+SELECT COUNT(*) FROM fact_transactions WHERE status = 'POSTED';
+SELECT COUNT(*) FROM fact_transactions;
+SELECT SUM(amount) FROM fact_transactions;
+SELECT AVG(amount) FROM fact_transactions;
+```
