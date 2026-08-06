@@ -48,7 +48,7 @@ with DAG(
 ) as dag:
     run_daily_summary = BashOperator(
         task_id="run_daily_summary",
-        bash_command="spark-submit /opt/airflow/spark/jobs/daily_summary.py",
+        bash_command="spark-submit /opt/airflow/scripts/run_summary.py",
     )
 
 # IMPORTANT: with overwrite, this will replace all the files from when it has run previously. As is, there is no duplicate prevention.

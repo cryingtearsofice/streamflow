@@ -83,6 +83,7 @@ services:
     volumes:
       - ../airflow/dags:/opt/airflow/dags
       - ../spark/jobs:/opt/airflow/spark/jobs
+      - ../scripts:/opt/airflow/scripts
       - ../src:/opt/airflow/src
       - ../data:/opt/airflow/data
     depends_on:
@@ -106,6 +107,7 @@ services:
     volumes:
       - ../airflow/dags:/opt/airflow/dags
       - ../spark/jobs:/opt/airflow/spark/jobs
+      - ../scripts:/opt/airflow/scripts
       - ../src:/opt/airflow/src
       - ../data:/opt/airflow/data
     depends_on:
