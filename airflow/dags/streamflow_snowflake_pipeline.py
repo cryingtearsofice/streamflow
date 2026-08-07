@@ -13,7 +13,6 @@ from airflow import DAG
 # from airflow.providers.standard.operators.bash import BashOperator # Use for 3.x versions
 # from airflow.providers.standard.operators.empty import EmptyOperator # ^
 from airflow.operators.bash import BashOperator # Use for 2.x versions
-from airflow.operators.empty import EmptyOperator # ^
 
 root_dir = Path("/opt/airflow")
 
@@ -74,8 +73,13 @@ with DAG(
         },
     )
 
-    task_publish_run_summary = EmptyOperator(
+    task_publish_run_summary = BashOperator(
         task_id = "publish_run_summary",
+        bash_command = f"cd {root_dir} && python scripts/publish_run_summary.py",
+        env = {
+            "SNOWFLAKE_USER": "{{ conn.snowflake_default.login }}",
+            "SNOWFLAKE_PASSWORD": "{{ conn.snowflake_default.password }}",
+        },
     )
 
     (
